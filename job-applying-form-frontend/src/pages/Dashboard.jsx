@@ -102,7 +102,6 @@ const JobApplicationForm = () => {
   const [selectedJob, setSelectedJob] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
-  const [currentJobIndex, setCurrentJobIndex] = useState(0);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -133,16 +132,6 @@ const JobApplicationForm = () => {
   
   const steps = ['Personal Info', 'Professional Details', 'Documents', 'Review'];
   
-  const positions = [
-    'Software Engineer',
-    'UX/UI Designer',
-    'Product Manager',
-    'Data Scientist',
-    'Marketing Specialist',
-    'Customer Support',
-    'Sales Representative',
-  ];
-  
   const educationLevels = [
     'High School',
     'Associate Degree',
@@ -156,11 +145,10 @@ const JobApplicationForm = () => {
     const loadJobs = async () => {
       try {
         const response = await fetchJobs();
-        setJobs(response); // response should already be the array of jobs
-        console.log("Jobs loaded:", response); // Add this for debugging
+        setJobs(response); 
+        console.log("Jobs loaded:", response);
       } catch (error) {
         console.error('Error loading jobs:', error);
-        // Optionally set some error state to show to the user
       } finally {
         setLoadingJobs(false);
       }
@@ -182,6 +170,29 @@ const JobApplicationForm = () => {
     setShowJobListings(true);
     setSelectedJob(null);
     setActiveStep(0);
+    // Reset form and errors when returning to listings
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      age: '',
+      phone: '',
+      address: '',
+      city: '',
+      country: '',
+      linkedIn: '',
+      portfolio: '',
+      currentPlace: '',
+      availability: '',
+      position: '',
+      experience: '',
+      education: '',
+      skills: [],
+      resume: null,
+      coverLetter: null,
+      job_id: ''
+    });
+    setErrors({});
   };
   
   const handleInputChange = (e) => {
@@ -204,21 +215,29 @@ const JobApplicationForm = () => {
     if (files && files[0]) {
       const file = files[0];
       const fileType = file.type;
+      const fileSize = file.size / 1024 / 1024; // Convert to MB
       
       if (
         fileType === 'application/pdf' || 
         fileType === 'application/msword' || 
         fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       ) {
-        setFormData({
-          ...formData,
-          [name]: file
-        });
-        
-        if (errors[name]) {
+        if (fileSize <= 5) {
+          setFormData({
+            ...formData,
+            [name]: file
+          });
+          
+          if (errors[name]) {
+            setErrors({
+              ...errors,
+              [name]: null
+            });
+          }
+        } else {
           setErrors({
             ...errors,
-            [name]: null
+            [name]: 'File size must be less than 5MB'
           });
         }
       } else {
@@ -260,29 +279,84 @@ const JobApplicationForm = () => {
     let isValid = true;
     
     if (step === 0) {
+      // Personal information validation
       if (!formData.firstName.trim()) {
         newErrors.firstName = 'First name is required';
+        isValid = false;
+      } else if (!/^[A-Za-z\s]+$/.test(formData.firstName)) {
+        newErrors.firstName = 'First name should contain only letters';
         isValid = false;
       }
       
       if (!formData.lastName.trim()) {
         newErrors.lastName = 'Last name is required';
         isValid = false;
+      } else if (!/^[A-Za-z\s]+$/.test(formData.lastName)) {
+        newErrors.lastName = 'Last name should contain only letters';
+        isValid = false;
       }
       
       if (!formData.email.trim()) {
         newErrors.email = 'Email is required';
         isValid = false;
-      } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-        newErrors.email = 'Email is invalid';
+      } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)) {
+        newErrors.email = 'Please enter a valid email address';
         isValid = false;
       }
       
       if (!formData.phone.trim()) {
         newErrors.phone = 'Phone number is required';
         isValid = false;
+      } else if (!/^[0-9+\-\s()]+$/.test(formData.phone)) {
+        newErrors.phone = 'Please enter a valid phone number';
+        isValid = false;
+      }
+      
+      if (!formData.age) {
+        newErrors.age = 'Age is required';
+        isValid = false;
+      } else if (isNaN(formData.age) || parseInt(formData.age) < 18 || parseInt(formData.age) > 100) {
+        newErrors.age = 'Age must be between 18 and 100';
+        isValid = false;
+      }
+      
+      if (!formData.address.trim()) {
+        newErrors.address = 'Address is required';
+        isValid = false;
+      }
+      
+      if (!formData.city.trim()) {
+        newErrors.city = 'City is required';
+        isValid = false;
+      }
+      
+      if (!formData.country.trim()) {
+        newErrors.country = 'Country is required';
+        isValid = false;
+      }
+      
+      if (!formData.currentPlace.trim()) {
+        newErrors.currentPlace = 'Current place is required';
+        isValid = false;
+      }
+      
+      if (!formData.availability.trim()) {
+        newErrors.availability = 'Availability information is required';
+        isValid = false;
+      }
+      
+      // Optional fields validation
+      if (formData.linkedIn.trim() && !/^https?:\/\/(?:www\.)?linkedin\.com\/in\/[\w-]+\/?$/.test(formData.linkedIn)) {
+        newErrors.linkedIn = 'Please enter a valid LinkedIn URL';
+        isValid = false;
+      }
+      
+      if (formData.portfolio.trim() && !/^https?:\/\/(?:www\.)?[\w-]+\.[\w.-]+\/?.*$/.test(formData.portfolio)) {
+        newErrors.portfolio = 'Please enter a valid portfolio URL';
+        isValid = false;
       }
     } else if (step === 1) {
+      // Professional details validation
       if (!formData.position) {
         newErrors.position = 'Position is required';
         isValid = false;
@@ -290,6 +364,9 @@ const JobApplicationForm = () => {
       
       if (!formData.experience.trim()) {
         newErrors.experience = 'Experience information is required';
+        isValid = false;
+      } else if (formData.experience.trim().length < 50) {
+        newErrors.experience = 'Please provide more detailed experience information (minimum 50 characters)';
         isValid = false;
       }
       
@@ -301,11 +378,23 @@ const JobApplicationForm = () => {
       if (formData.skills.length === 0) {
         newErrors.skills = 'At least one skill is required';
         isValid = false;
+      } else if (formData.skills.length < 2) {
+        newErrors.skills = 'Please add at least two skills';
+        isValid = false;
       }
     } else if (step === 2) {
+      // Documents validation
       if (!formData.resume) {
         newErrors.resume = 'Resume is required';
         isValid = false;
+      }
+      
+      if (formData.coverLetter) {
+        const coverLetterSize = formData.coverLetter.size / 1024 / 1024; // Convert to MB
+        if (coverLetterSize > 5) {
+          newErrors.coverLetter = 'Cover letter must be less than 5MB';
+          isValid = false;
+        }
       }
     }
     
@@ -329,6 +418,14 @@ const JobApplicationForm = () => {
   
   const handleFinalSubmit = async () => {
     try {
+      // Validate all steps before final submission
+      for (let i = 0; i < steps.length - 1; i++) {
+        if (!validateStep(i)) {
+          setActiveStep(i);
+          return;
+        }
+      }
+      
       setIsSubmitting(true);
       
       // Create FormData properly
@@ -351,6 +448,10 @@ const JobApplicationForm = () => {
       formDataToSend.append('skills', JSON.stringify(formData.skills));
       formDataToSend.append('job_id', selectedJob.id);
       
+      // Add optional fields if they exist
+      if (formData.linkedIn) formDataToSend.append('linkedIn', formData.linkedIn);
+      if (formData.portfolio) formDataToSend.append('portfolio', formData.portfolio);
+      
       // Add files
       formDataToSend.append('resume', formData.resume);
       if (formData.coverLetter) {
@@ -362,7 +463,7 @@ const JobApplicationForm = () => {
         console.log(key, value);
       }
       
-      // Send to backend - FIXED: Pass the formDataToSend object, not its entries
+      // Send to backend
       const response = await submitApplication(formDataToSend);
       
       setOpenSnackbar(true);
@@ -390,7 +491,7 @@ const JobApplicationForm = () => {
   };
 
   const renderJobListings = () => (
-    <Box sx={{ maxWidth: '1200px' }}>  {/* Increased from 800px to 1000px */}
+    <Box sx={{ maxWidth: '1200px' }}>
       <Typography 
         variant="h5" 
         sx={{ 
@@ -419,7 +520,7 @@ const JobApplicationForm = () => {
           display: 'flex', 
           flexDirection: 'column', 
           gap: 2,
-          width: '100%',  // Ensures full width within the parent
+          width: '100%',
         }}>
           {jobs.map((job) => (
             <Card 
@@ -429,7 +530,7 @@ const JobApplicationForm = () => {
                 boxShadow: theme.shadows[1],
                 border: '2px solid', 
                 borderImageSource: 'linear-gradient(to right, #4ABFFF, #4C00FF)', 
-                borderImageSlice: 1, // Ensures the gradient is applied
+                borderImageSlice: 1,
                 transition: 'transform 0.2s, box-shadow 0.2s',
                 '&:hover': {
                   transform: 'translateY(-2px)',
@@ -518,6 +619,8 @@ const JobApplicationForm = () => {
                     helperText={errors.firstName}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 50 }}
+                    placeholder="Enter your first name"
                 />
                 
                 <TextField
@@ -531,6 +634,8 @@ const JobApplicationForm = () => {
                     helperText={errors.lastName}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 50 }}
+                    placeholder="Enter your last name"
                 />
                 
                 <TextField
@@ -545,6 +650,8 @@ const JobApplicationForm = () => {
                     helperText={errors.email}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 100 }}
+                    placeholder="example@email.com"
                 />
                 
                 <TextField
@@ -558,6 +665,8 @@ const JobApplicationForm = () => {
                     helperText={errors.phone}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 20 }}
+                    placeholder="+1 123-456-7890"
                 />
 
                 <TextField
@@ -573,6 +682,7 @@ const JobApplicationForm = () => {
                     variant="outlined"
                     size="medium"
                     InputProps={{ inputProps: { min: 18, max: 100 } }}
+                    placeholder="Enter your age"
                 />
 
                 <TextField
@@ -586,6 +696,8 @@ const JobApplicationForm = () => {
                     helperText={errors.address}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 200 }}
+                    placeholder="Enter your address"
                 />
 
                 <TextField
@@ -599,19 +711,24 @@ const JobApplicationForm = () => {
                     helperText={errors.city}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 100 }}
+                    placeholder="Enter your city"
                 />
 
-                <FormControl fullWidth error={!!errors.country}>
-                  <TextField
-                    name="country"
+                <TextField
                     label="Country"
+                    name="country"
                     value={formData.country}
                     onChange={handleInputChange}
-                    variant="outlined"
+                    fullWidth
                     required
-                  />
-                  {errors.country && <FormHelperText>{errors.country}</FormHelperText>}
-                </FormControl>
+                    error={!!errors.country}
+                    helperText={errors.country}
+                    variant="outlined"
+                    size="medium"
+                    inputProps={{ maxLength: 100 }}
+                    placeholder="Enter your country"
+                />
 
                 <TextField
                     label="Current Place"
@@ -624,6 +741,8 @@ const JobApplicationForm = () => {
                     helperText={errors.currentPlace}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 100 }}
+                    placeholder="Current city/location"
                 />
 
                 <TextField
@@ -637,6 +756,7 @@ const JobApplicationForm = () => {
                     helperText={errors.availability}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 100 }}
                     placeholder="e.g., 2 weeks notice, available immediately"
                 />
 
@@ -650,6 +770,7 @@ const JobApplicationForm = () => {
                     helperText={errors.linkedIn}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 100 }}
                     placeholder="https://linkedin.com/in/yourprofile"
                 />
 
@@ -663,6 +784,7 @@ const JobApplicationForm = () => {
                     helperText={errors.portfolio}
                     variant="outlined"
                     size="medium"
+                    inputProps={{ maxLength: 100 }}
                     placeholder="https://yourportfolio.com"
                 />
                 </Box>
@@ -680,22 +802,27 @@ const JobApplicationForm = () => {
             </Box>
             
             <Box sx={{ display: 'grid', gap: 3 }}>
-              <FormControl fullWidth error={!!errors.position}>
-                <InputLabel>Position</InputLabel>
-                <Select
-                  name="position"
-                  value={formData.position}
-                  onChange={handleInputChange}
-                  label="Position"
-                  required
-                  variant="outlined"
-                >
-                  {positions.map((pos) => (
-                    <MenuItem key={pos} value={pos}>{pos}</MenuItem>
-                  ))}
-                </Select>
-                {errors.position && <FormHelperText>{errors.position}</FormHelperText>}
-              </FormControl>
+              {/* Display job position as read-only field */}
+              <TextField
+                label="Position"
+                name="position"
+                value={formData.position}
+                InputProps={{
+                  readOnly: true,
+                }}
+                fullWidth
+                required
+                variant="outlined"
+                sx={{
+                  "& .MuiInputBase-input.Mui-disabled": {
+                    WebkitTextFillColor: theme.palette.text.primary,
+                    fontWeight: "500",
+                  },
+                  "& .MuiOutlinedInput-notchedOutline": {
+                    borderColor: theme.palette.primary.main,
+                  },
+                }}
+              />
               
               <TextField
                 label="Experience"
@@ -705,21 +832,21 @@ const JobApplicationForm = () => {
                 fullWidth
                 multiline
                 rows={4}
-                placeholder="Please describe your relevant work experience"
+                placeholder="Please describe your relevant work experience (minimum 50 characters)"
                 required
                 error={!!errors.experience}
                 helperText={errors.experience}
                 variant="outlined"
+                inputProps={{ maxLength: 2000 }}
               />
               
-              <FormControl fullWidth error={!!errors.education}>
+              <FormControl fullWidth error={!!errors.education} required>
                 <InputLabel>Education Level</InputLabel>
                 <Select
                   name="education"
                   value={formData.education}
                   onChange={handleInputChange}
                   label="Education Level"
-                  required
                   variant="outlined"
                 >
                   {educationLevels.map((edu) => (
@@ -731,8 +858,7 @@ const JobApplicationForm = () => {
               
               <Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <StarIcon color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="subtitle1">Skills</Typography>
+                  <Typography variant="subtitle1" sx={{color: 'bold'}}>Skills (minimum 2 required)</Typography>
                 </Box>
                 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
@@ -742,13 +868,13 @@ const JobApplicationForm = () => {
                       label={skill}
                       onDelete={() => handleDeleteSkill(skill)}
                       color="primary"
-                      variant="outlined"
+                      variant="contained"
                     />
                   ))}
                 </Box>
                 
                 <Button 
-                  variant="outlined" 
+                  variant="comtained" 
                   onClick={() => setOpenDialog(true)}
                   size="medium"
                   startIcon={<AddIcon />}

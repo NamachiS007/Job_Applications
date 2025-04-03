@@ -1,6 +1,6 @@
-// src/components/ASidebar.jsx
 'use client';
 
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { IoIosArrowForward } from "react-icons/io";
 import { FaWpforms } from "react-icons/fa";
@@ -11,6 +11,7 @@ export default function ASidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [showLogout, setShowLogout] = useState(false); // Track logout button visibility
 
   const menuItems = [
     { 
@@ -29,6 +30,11 @@ export default function ASidebar() {
     navigate(path);
   };
 
+  const handleLogout = () => {
+    logout(); // Call logout function
+    navigate('/login'); // Redirect to login page
+  };
+
   const isActive = (path) => {
     return location.pathname === path 
       ? 'bg-[#ff8303] font-semibold text-black' 
@@ -38,7 +44,7 @@ export default function ASidebar() {
   return (
     <div className="flex flex-col h-screen w-64 text-gray-800 overflow-y-auto px-3 py-4" style={{backgroundColor: "#101828"}}>
       {/* Header */}
-      <div className="flex justify-center items-center mb-4">
+      <div className="flex justify-center items-center mb-4 relative">
         <div className="rounded-xl p-3 w-80 bg-white/30 backdrop-blur-sm">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-200">
@@ -56,9 +62,25 @@ export default function ASidebar() {
                 {user?.email || '@namachis'}
               </p>
             </div>
-            <IoIosArrowForward className="text-gray-400" />
+            {/* Arrow button to toggle logout */}
+            <IoIosArrowForward 
+              className="text-gray-400 cursor-pointer" 
+              onClick={() => setShowLogout(!showLogout)} // Toggle logout button
+            />
           </div>
         </div>
+
+        {/* Logout Button */}
+        {showLogout && (
+          <div className="absolute top-16 right-0 bg-white text-black rounded-md shadow-lg p-2">
+            <button 
+              onClick={handleLogout} 
+              className="w-full text-left px-4 py-2 hover:bg-gray-200 text-sm font-medium"
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Menu Label */}

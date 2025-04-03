@@ -38,14 +38,10 @@ import {
   Code as CodeIcon,
   LocationOn as LocationIcon,
   Person as PersonIcon,
-  CalendarToday as CalendarIcon
+  CalendarToday as CalendarIcon,
+  Download as DownloadIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
-import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 // Custom styled components
 const StyledPaper = styled(Paper)(({ theme }) => ({
@@ -113,12 +109,6 @@ const AppliedJobsList = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [applicationToDelete, setApplicationToDelete] = useState(null);
-  
-  // PDF Viewer states
-  const [pdfUrl, setPdfUrl] = useState(null);
-  const [numPages, setNumPages] = useState(null);
-  const [pdfOpen, setPdfOpen] = useState(false);
-  const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -178,20 +168,14 @@ const AppliedJobsList = () => {
     console.log(`Application ${applicationId} status updated to ${newStatus}`);
   };
 
-  // PDF Viewer functions
-  const handlePdfOpen = (url) => {
-    setPdfUrl(url);
-    setPdfOpen(true);
-  };
-
-  const handlePdfClose = () => {
-    setPdfOpen(false);
-    setPdfUrl(null);
-  };
-
-  const onDocumentLoadSuccess = ({ numPages }) => {
-    setNumPages(numPages);
-    setIsPdfLoading(false);
+  // Function to handle PDF download
+  const handlePdfDownload = (url, filename) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || 'document.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getStatusIcon = (status) => {
@@ -222,57 +206,6 @@ const AppliedJobsList = () => {
         return 'Pending';
     }
   };
-
-  const PdfViewerDialog = () => (
-    <Dialog
-      open={pdfOpen}
-      onClose={handlePdfClose}
-      fullWidth
-      maxWidth="md"
-      PaperProps={{ sx: { height: '90vh' } }}
-    >
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h6">Document Preview</Typography>
-        <IconButton onClick={handlePdfClose}>
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
-        {isPdfLoading && <CircularProgress sx={{ my: 4 }} />}
-        
-        {pdfUrl ? (
-          <Box sx={{ width: '100%', height: '100%', overflow: 'auto' }}>
-            <Document
-              file={pdfUrl}
-              onLoadSuccess={onDocumentLoadSuccess}
-              onLoadError={(error) => console.error('PDF load error:', error)}
-              loading={<CircularProgress />}
-              options={{
-                cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
-                cMapPacked: true,
-              }}
-            >
-              {Array.from(new Array(numPages), (_, index) => (
-                <Page
-                  key={`page_${index + 1}`}
-                  pageNumber={index + 1}
-                  width={isMobile ? 400 : 800}
-                  loading={<CircularProgress />}
-                />
-              ))}
-            </Document>
-          </Box>
-        ) : (
-          <Typography color="error">No document available</Typography>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Typography variant="body2" color="text.secondary">
-          {numPages ? `Page 1 of ${numPages}` : 'Loading document...'}
-        </Typography>
-      </DialogActions>
-    </Dialog>
-  );
 
   return (
     <Container maxWidth="md" sx={{ py: 2 }}>
@@ -501,10 +434,14 @@ const AppliedJobsList = () => {
                         <Button 
                           variant="contained" 
                           size="small"
-                          onClick={() => handlePdfOpen(selectedApplication.resume.download_url)}
+                          onClick={() => handlePdfDownload(
+                            selectedApplication.resume.download_url, 
+                            selectedApplication.resume.filename
+                          )}
+                          startIcon={<DownloadIcon />}
                           sx={{ borderRadius: '20px' }}
                         >
-                          View
+                          Download
                         </Button>
                       </Box>
                     </Paper>
@@ -523,10 +460,14 @@ const AppliedJobsList = () => {
                         <Button 
                           variant="contained" 
                           size="small"
-                          onClick={() => handlePdfOpen(selectedApplication.cover_letter.download_url)}
+                          onClick={() => handlePdfDownload(
+                            selectedApplication.cover_letter.download_url,
+                            selectedApplication.cover_letter.filename
+                          )}
+                          startIcon={<DownloadIcon />}
                           sx={{ borderRadius: '20px' }}
                         >
-                          View
+                          Download
                         </Button>
                       </Box>
                     </Paper>
@@ -544,18 +485,18 @@ const AppliedJobsList = () => {
                   borderRadius: '4px',
                   textTransform: 'none',
                   boxShadow: 'none',
-                  backgroundColor: '#d32f2f', // Ensure initial color
+                  backgroundColor: '#d32f2f',
                   borderColor: '#d32f2f',
                   '&:hover': {
-                    backgroundColor: 'rgba(211, 47, 47, 0.85)', // Darker red on hover
+                    backgroundColor: 'rgba(211, 47, 47, 0.85)',
                     borderColor: '#b71c1c'
                   },
                   '&:focus': {
-                    backgroundColor: '#d32f2f', // Prevent white color on focus
+                    backgroundColor: '#d32f2f',
                     borderColor: '#b71c1c'
                   },
                   '&:active': {
-                    backgroundColor: '#b71c1c', // Ensure proper click color
+                    backgroundColor: '#b71c1c',
                     borderColor: '#9a0007'
                   }
                 }}
@@ -648,9 +589,6 @@ const AppliedJobsList = () => {
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* PDF Viewer Dialog */}
-      <PdfViewerDialog />
     </Container>
   );
 };
