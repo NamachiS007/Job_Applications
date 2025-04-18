@@ -29,7 +29,6 @@ export const fetchJobs = async () => {
       throw error;
     }
 };
-  
 
 export const fetchJobDetails = async (jobId) => {
   try {
